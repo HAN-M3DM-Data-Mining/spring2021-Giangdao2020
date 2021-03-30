@@ -1,0 +1,111 @@
+---
+title: "Occupancy dataset analysis - Giang Dao"
+author: Giang Dao
+reviewer: Sven van Bezooijen
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+self_contained: false
+output: html_notebook
+---
+
+# Data understanding
+
+```{r}
+library(readr)
+url <- "https://raw.githubusercontent.com/HAN-M3DM-Data-Mining/assignments/master/datasets/KNN-occupancy.csv"
+rawDF <- read_csv(url)
+
+str(rawDF)
+```
+## Data preparation
+
+The first column is only used for specifying date and time of the observations, and serves no purpose in the prediction model. Therefore, this column is removed from the dataset.
+
+```{r}
+cleanDF <- rawDF[-1]
+head(cleanDF)
+```
+
+```{r}
+cntOccu <- table(cleanDF$Occupancy)
+propOccu <- round(prop.table(cntOccu)*100, digits = 1)
+
+cntOccu
+propOccu
+```
+
+The dataset labels should be converted from "character" into "factor" to be interpreted by the prediction model. I have also assigned abbreviations for these labels.
+```{r}
+library(tidyverse)
+cleanDF$Occupancy <- factor(cleanDF$Occupancy, levels = c("0","1"), labels = c("No","Yes")) %>% relevel("Yes")
+
+head(cleanDF)
+```
+
+```{r}
+summary(cleanDF[c("Temperature", "Light", "HumidityRatio")])
+```
+As the variables have different range from each other, we need to use the normalize function to rescale these variables.
+
+```{r}
+normalize <- function(x) { # Function takes in a vector
+  return ((x - min(x)) / (max(x) - min(x))) # distance of item value - minimum vector value divided by the range of all vector values
+}
+
+testSet1 <- c(1:5)
+testSet2 <- c(1:5) * 10
+
+cat("testSet1:", testSet1, "\n")
+
+cat("testSet2:", testSet2, "\n")
+
+cat("Normalized testSet1:", normalize(testSet1), "\n")
+
+cat("Normalized testSet2:", normalize(testSet2))
+
+```
+
+The normalize function is then applied to the dataset.
+
+```{r}
+
+cleanDF_n <- sapply(1:5,
+                    function(x) {
+  normalize(cleanDF[,x])
+}) %>% as.data.frame()
+head(cleanDF_n)
+summary(cleanDF_n[c("Temperature", "Light", "HumidityRatio")])
+
+```
+After normalizing the data, we then move on to split the original dataset into training and testing sets.
+
+```{r}
+trainDF_feat <- cleanDF_n[1:4071,]
+testDF_feat <- cleanDF_n[4071:8143,]
+
+trainDF_labels <- cleanDF[1:4071,6]
+testDF_labels <- cleanDF[4071:8143,6]
+```
+
+## Modeling and Evaluation
+
+K-value stands for how many 'Neighbour' data points it looks for to make the conclusion in the model. A common used method is using the square root of total number of datapoints.
+
+```{r}
+library(class)
+
+x <- sqrt(nrow(cleanDF_n))
+
+cleanDF_test_pred <- knn(train = as.matrix(trainDF_feat), test = as.matrix(testDF_feat), cl = as.matrix(trainDF_labels), k = x)
+head(cleanDF_test_pred)
+```
+
+Finally, a confusionMatrix is created to show how well the model performed.
+
+```{r}
+library(caret)
+
+confusionMatrix(cleanDF_test_pred, testDF_labels[[1]], positive = NULL, dnn = c("Prediction", "True"))
+
+```
+The overall performance of the model is quite good with accuracy reaching 96%.
+
