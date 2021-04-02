@@ -1,16 +1,24 @@
 ---
 title: "Occupancy dataset analysis - Giang Dao"
-author: Giang Dao
-reviewer: Sven van Bezooijen
+author: "Giang Dao"
+reviewer: "Sven van Bezooijen"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
-self_contained: false
-output: html_notebook
+output:
+  html_document:
+    df_print: paged
+self_contained: no
+
 ---
+```{r}
+library(readr)
+library(tidyverse)
+library(class)
+library(caret)
+```
 
 # Data understanding
 
 ```{r}
-library(readr)
 url <- "https://raw.githubusercontent.com/HAN-M3DM-Data-Mining/assignments/master/datasets/KNN-occupancy.csv"
 rawDF <- read_csv(url)
 
@@ -35,7 +43,6 @@ propOccu
 
 The dataset labels should be converted from "character" into "factor" to be interpreted by the prediction model. I have also assigned abbreviations for these labels.
 ```{r}
-library(tidyverse)
 cleanDF$Occupancy <- factor(cleanDF$Occupancy, levels = c("0","1"), labels = c("No","Yes")) %>% relevel("Yes")
 
 head(cleanDF)
@@ -79,10 +86,10 @@ summary(cleanDF_n[c("Temperature", "Light", "HumidityRatio")])
 After normalizing the data, we then move on to split the original dataset into training and testing sets.
 
 ```{r}
-trainDF_feat <- cleanDF_n[1:4071,]
+trainDF_feat <- cleanDF_n[1:4070,]
 testDF_feat <- cleanDF_n[4071:8143,]
 
-trainDF_labels <- cleanDF[1:4071,6]
+trainDF_labels <- cleanDF[1:4070,6]
 testDF_labels <- cleanDF[4071:8143,6]
 ```
 
@@ -91,8 +98,6 @@ testDF_labels <- cleanDF[4071:8143,6]
 K-value stands for how many 'Neighbour' data points it looks for to make the conclusion in the model. A common used method is using the square root of total number of datapoints.
 
 ```{r}
-library(class)
-
 x <- sqrt(nrow(cleanDF_n))
 
 cleanDF_test_pred <- knn(train = as.matrix(trainDF_feat), test = as.matrix(testDF_feat), cl = as.matrix(trainDF_labels), k = x)
@@ -102,10 +107,26 @@ head(cleanDF_test_pred)
 Finally, a confusionMatrix is created to show how well the model performed.
 
 ```{r}
-library(caret)
 
 confusionMatrix(cleanDF_test_pred, testDF_labels[[1]], positive = NULL, dnn = c("Prediction", "True"))
 
 ```
 The overall performance of the model is quite good with accuracy reaching 96%.
 
+# Reviewer's comment:
+
+In the data prep. It is mentioned it is the column with no relevant data. But with a “-5”, the wrong column is selected from the set. With later not all of the relevant ones selected.
+
+Furthermore in Line 74. In the code. There is tried to pass the var x from a function to a method within the code block. But this isn’t a numerical number.
+
+While refactoring. No relevel formula was used. Which doesnt make the analysis correct
+
+In the code block for line 80. The selection of data is done wrong. It isn’t selected how many for each set of the feat. In a good way anyway. The sets should be set as followed:
+
+trainDF_feat <- cleanDF_n[1:4070,] testDF_feat <- cleanDF_n[4071:8143,]
+
+As well for the Labels sets. These dont reffer to the correct column
+
+trainDF_labels <- cleanDF[1:4070,1] testDF_labels <- cleanDF[4071:8143,1]
+
+As a global. The librarys could be grouped at the start of the RMd file. So it can be more easlily accessed
